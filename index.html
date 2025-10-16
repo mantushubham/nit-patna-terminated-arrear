@@ -303,9 +303,9 @@
             const contentWidth = pageWidth - 2 * margin;
 
             // Header
-            doc.setFontSize(16);
+            doc.setFontSize(14);
             doc.setFont('times', 'bold');
-            y = addWrappedText(doc, 'NIT Patna Retired/Terminated Ex-SM Security Guards Arrears Claim Letter', y, contentWidth, lineHeight + 3);
+            y = addWrappedText(doc, 'NIT Patna Retired/Terminated Ex-SM Security Guards Arrears Claim Letter', y, contentWidth, margin +10, lineHeight + 3);
             y += lineHeight;
 
             // Personal Info
@@ -412,7 +412,7 @@
             y = addWrappedText(doc, name, margin, y, contentWidth, lineHeight);
 
             // Save
-            doc.save(`${name}_Arrears_Claim.pdf`);
+            doc.save(`${name}_Terminated_Arrears_Claim.pdf`);
         }
 
         // Event Listeners
