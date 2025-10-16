@@ -1,0 +1,423 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ex-Servicemen Retired/Terminated Security Guards Arrears Calculator - NIT Patna</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        form { max-width: 600px; margin: 0 auto; }
+        label { display: block; margin-top: 10px; }
+        input { width: 100%; padding: 8px; margin-top: 5px; }
+        button { display: block; width: 100%; padding: 10px; margin-top: 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .violation { color: red; }
+        #total-arrears { font-weight: bold; margin-top: 20px; }
+        .error { color: red; font-size: 0.9em; margin-top: 5px; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>Ex-Servicemen Security Guards Arrears Calculator</h1>
+    <p>This tool allows you to input your date of joining, date of termination/retirement, and consolidated pay received each month. It analyzes violations based on DGR/CLC minimum wages for NIT Patna, calculates underpayments, and generates a PDF for claiming arrears.</p>
+    
+    <form id="inputForm">
+        <label for="name">Your Name:</label>
+        <input type="text" id="name" name="name" required aria-required="true">
+        <div id="name-error" class="error" aria-live="polite"></div>
+        
+        <label for="aadhaar">Aadhaar Number:</label>
+        <input type="text" id="aadhaar" name="aadhaar" required pattern="\d{12}" placeholder="Enter 12-digit Aadhaar number" title="Aadhaar must be 12 digits" aria-required="true">
+        <div id="aadhaar-error" class="error" aria-live="polite"></div>
+        
+        <label for="bankAccount">Indian Bank Salary Account No.:</label>
+        <input type="text" id="bankAccount" name="bankAccount" required pattern="\d{9,18}" placeholder="Enter 9-18 digit account number" title="Account number must be 9-18 digits" aria-required="true">
+        <div id="bankAccount-error" class="error" aria-live="polite"></div>
+        
+        <label for="dob">Date of Birth (YYYY-MM-DD):</label>
+        <input type="date" id="dob" name="dob" required aria-required="true" min="1900-01-01" max="2005-10-04">
+        <div id="dob-error" class="error" aria-live="polite"></div>
+        
+        <label for="mobile">Mobile Number:</label>
+        <input type="tel" id="mobile" name="mobile" required pattern="\d{10}" placeholder="Enter 10-digit mobile number" title="Mobile must be 10 digits" aria-required="true">
+        <div id="mobile-error" class="error" aria-live="polite"></div>
+        
+        <label for="email">Email Address:</label>
+        <input type="email" id="email" name="email" required aria-required="true">
+        <div id="email-error" class="error" aria-live="polite"></div>
+        
+        <label for="joiningDate">Date of Joining (YYYY-MM-DD):</label>
+        <input type="date" id="joiningDate" name="joiningDate" required aria-required="true" min="2013-10-01" max="2025-10-04">
+        <div id="joiningDate-error" class="error" aria-live="polite"></div>
+        
+        <label for="terminationDate">Date of Termination/Retirement (YYYY-MM-DD, leave blank if still employed):</label>
+        <input type="date" id="terminationDate" name="terminationDate" aria-required="false" min="2013-10-01" max="2025-10-04">
+        <div id="terminationDate-error" class="error" aria-live="polite"></div>
+        
+        <button type="button" id="generateMonthsBtn">Generate Months & Input Pays</button>
+    </form>
+    
+    <div id="tableContainer" style="display: none;">
+        <table id="payTable">
+            <thead>
+                <tr>
+                    <th>Month (YYYY-MM)</th>
+                    <th>Required Total Wages (as per DGR/CLC)</th>
+                    <th>Consolidated Pay Received</th>
+                    <th>Difference (Underpayment)</th>
+                    <th>Violation</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div id="total-arrears"></div>
+        <button type="button" id="generatePDFBtn">Generate Arrears Claim PDF</button>
+    </div>
+
+    <script>
+        const wageData = [
+            { month: 'Oct 2013', totalWages: 15661.71 },
+            { month: 'Apr 2014', totalWages: 16630.48 },
+            { month: 'Oct 2014', totalWages: 16791.94 },
+            { month: 'Apr 2015', totalWages: 17653.06 },
+            { month: 'Oct 2015', totalWages: 17892.22 },
+            { month: 'Apr 2016', totalWages: 18645.65 },
+            { month: 'Oct 2016', totalWages: 18998.57 },
+            { month: 'Apr 2017', totalWages: 31821.12 },
+            { month: 'Oct 2017', totalWages: 31915.45 },
+            { month: 'Apr 2018', totalWages: 32938.03 },
+            { month: 'Oct 2018', totalWages: 33622.50 },
+            { month: 'Apr 2019', totalWages: 34920.71 },
+            { month: 'Oct 2019', totalWages: 35477.10 },
+            { month: 'Apr 2020', totalWages: 36878.46 },
+            { month: 'Oct 2020', totalWages: 37428.61 },
+            { month: 'Feb 2021', totalWages: 37428.61 },
+            { month: 'Oct 2021', totalWages: 39007.25 },
+            { month: 'Apr 2022', totalWages: 38594.64 },
+            { month: 'Oct 2022', totalWages: 41070.33 },
+            { month: 'Apr 2023', totalWages: 42354.02 },
+            { month: 'Oct 2023', totalWages: 42896.90 },
+            { month: 'Apr 2024', totalWages: 44462.95 },
+            { month: 'Oct 2024', totalWages: 44738.03 },
+            { month: 'Apr 2025', totalWages: 44426.48 },
+            { month: 'Oct 2025', totalWages: 45884.18 }
+        ];
+
+        function getTotalWagesForMonth(yearMonth) {
+            const [year, month] = yearMonth.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const formattedMonth = `${month} ${year}`;
+            const applicable = wageData.find(w => w.month === formattedMonth);
+            if (!applicable) {
+                // Interpolate or use closest wage
+                const sortedWages = wageData.sort((a, b) => new Date(a.month) - new Date(b.month));
+                const targetDate = new Date(`${month} 1, ${year}`);
+                for (let i = 0; i < sortedWages.length - 1; i++) {
+                    const current = new Date(sortedWages[i].month);
+                    const next = new Date(sortedWages[i + 1].month);
+                    if (targetDate >= current && targetDate < next) {
+                        return sortedWages[i].totalWages; // Use previous wage
+                    }
+                }
+                return sortedWages[sortedWages.length - 1].totalWages; // Fallback to latest wage
+            }
+            return applicable.totalWages;
+        }
+
+        function validateForm() {
+            const inputs = ['name', 'aadhaar', 'bankAccount', 'dob', 'mobile', 'email', 'joiningDate'];
+            let isValid = true;
+            inputs.forEach(id => {
+                const input = document.getElementById(id);
+                const errorDiv = document.getElementById(`${id}-error`);
+                if (!input.value) {
+                    errorDiv.textContent = `Please enter ${input.name || id}.`;
+                    isValid = false;
+                } else if (!input.checkValidity()) {
+                    errorDiv.textContent = input.validationMessage || `Invalid ${input.name || id}.`;
+                    isValid = false;
+                } else {
+                    errorDiv.textContent = '';
+                }
+            });
+
+            // Custom date validation
+            const joiningDate = new Date(document.getElementById('joiningDate').value);
+            const dob = new Date(document.getElementById('dob').value);
+            const terminationDateInput = document.getElementById('terminationDate').value;
+            const terminationDate = terminationDateInput ? new Date(terminationDateInput) : null;
+            const currentDate = new Date();
+
+            if (isNaN(joiningDate.getTime()) || joiningDate > currentDate) {
+                document.getElementById('joiningDate-error').textContent = 'Joining date must be valid and not in the future.';
+                isValid = false;
+            }
+            if (isNaN(dob.getTime()) || dob > currentDate) {
+                document.getElementById('dob-error').textContent = 'Date of birth must be valid and not in the future.';
+                isValid = false;
+            }
+            if (terminationDateInput && (isNaN(terminationDate.getTime()) || terminationDate > currentDate)) {
+                document.getElementById('terminationDate-error').textContent = 'Termination date must be valid and not in the future.';
+                isValid = false;
+            }
+            if (terminationDateInput && terminationDate < joiningDate) {
+                document.getElementById('terminationDate-error').textContent = 'Termination date must be after joining date.';
+                isValid = false;
+            }
+            return isValid;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const [year, month, day] = dateStr.split('-');
+            return `${day}-${month}-${year}`;
+        }
+
+        function generateMonths() {
+            if (!validateForm()) {
+                alert('Please fill out all required fields correctly.');
+                return;
+            }
+
+            const joiningDateInput = document.getElementById('joiningDate').value;
+            const terminationDateInput = document.getElementById('terminationDate').value;
+            const joiningDate = new Date(joiningDateInput);
+            const terminationDate = terminationDateInput ? new Date(terminationDateInput) : new Date();
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            
+            let current = new Date(joiningDate.getFullYear(), joiningDate.getMonth(), 1);
+            const endDate = terminationDateInput ? new Date(terminationDate.getFullYear(), terminationDate.getMonth() + 1, 0) : new Date();
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            let rowCount = 0;
+            const maxRows = 180; // Limit to 15 years of months
+
+            while (current <= endDate && rowCount < maxRows) {
+                const year = current.getFullYear();
+                const month = monthNames[current.getMonth()];
+                const yearMonth = `${year}-${month}`;
+                const requiredTotalWages = getTotalWagesForMonth(yearMonth);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${yearMonth}</td>
+                    <td>${requiredTotalWages.toFixed(2)}</td>
+                    <td><input type="number" class="paid-input" value="0" min="0" step="0.01" onchange="calculateDifference(this)" aria-label="Consolidated Pay for ${yearMonth}"></td>
+                    <td class="difference">0.00</td>
+                    <td class="violation"></td>
+                `;
+                tableBody.appendChild(row);
+                
+                current.setMonth(current.getMonth() + 1);
+                rowCount++;
+            }
+
+            if (rowCount >= maxRows) {
+                alert('Warning: Date range is too large. Showing up to 15 years of data.');
+            }
+            
+            document.getElementById('tableContainer').style.display = 'block';
+            calculateAllDifferences();
+        }
+
+        function calculateDifference(input) {
+            const row = input.parentElement.parentElement;
+            const required = parseFloat(row.children[1].textContent);
+            const paid = parseFloat(input.value) || 0;
+            const diff = required - paid;
+            row.children[3].textContent = diff.toFixed(2);
+            row.children[4].textContent = diff > 0 ? 'Underpaid' : 'No Violation';
+            row.children[4].classList.toggle('violation', diff > 0);
+            calculateTotalArrears();
+        }
+
+        function calculateAllDifferences() {
+            const inputs = document.querySelectorAll('.paid-input');
+            inputs.forEach(input => calculateDifference(input));
+        }
+
+        function calculateTotalArrears() {
+            const diffs = document.querySelectorAll('.difference');
+            let total = 0;
+            diffs.forEach(diff => {
+                total += parseFloat(diff.textContent) || 0;
+            });
+            document.getElementById('total-arrears').textContent = `Total Arrears: ₹${total.toFixed(2)}`;
+            return total;
+        }
+
+        function addWrappedText(doc, text, x, y, maxWidth, lineHeight) {
+            const lines = doc.splitTextToSize(text, maxWidth);
+            lines.forEach(line => {
+                doc.text(line, x, y);
+                y += lineHeight;
+            });
+            return y;
+        }
+
+        function generatePDF() {
+            if (!validateForm()) {
+                alert('Please fill out all required fields correctly before generating the PDF.');
+                return;
+            }
+
+            if (!window.jspdf) {
+                alert('Error: jsPDF library failed to load. Please check your internet connection or try again later.');
+                return;
+            }
+
+            if (document.querySelectorAll('#payTable tbody tr').length === 0) {
+                alert('Please generate the payment table before creating the PDF.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+            const name         = document.getElementById('name').value;
+            const aadhaar      = document.getElementById('aadhaar').value;
+            const bankAccount  = document.getElementById('bankAccount').value;
+            const dob          = formatDate(document.getElementById('dob').value);
+            const mobile       = document.getElementById('mobile').value;
+            const email        = document.getElementById('email').value;
+            const joiningDate  = formatDate(document.getElementById('joiningDate').value);
+            const terminationDate = formatDate(document.getElementById('terminationDate').value);
+            const totalArrears = calculateTotalArrears();
+
+            doc.setFont('times');
+            doc.setFontSize(12);
+
+            // Page and layout config
+            let y             = 10;
+            const pageWidth   = 210;
+            const pageHeight  = 297;
+            const margin      = 10;
+            const lineHeight  = 7;
+            const maxY        = pageHeight - margin;
+            const contentWidth = pageWidth - 2 * margin;
+
+            // Header
+            doc.setFontSize(16);
+            doc.setFont('times', 'bold');
+            y = addWrappedText(doc, 'NIT Patna Ex-SM Security Guards Arrears Claim Letter', margin + 15, y, contentWidth, lineHeight + 3);
+            y += lineHeight;
+
+            // Personal Info
+            doc.setFontSize(12);
+            doc.setFont('times', 'normal');
+            y = addWrappedText(doc, `Name: ${name}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Aadhaar Number: ${aadhaar}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Date of Joining: ${joiningDate}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Date of Termination/Retirement: ${terminationDate}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Indian Bank Salary Account No.: ${bankAccount}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Date of Birth: ${dob}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Mobile Number: ${mobile}`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `Email Address: ${email}\n`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `To,`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, `The Director, NIT Patna`, margin, y, contentWidth, lineHeight);
+
+            // Subject & Body
+            const subjectText = `Subject: Claim for Arrears Due to Violations of DGR Minimum Wages, Non-Provision of EPF, and Other Allowances`;
+            y = addWrappedText(doc, subjectText, margin, y, contentWidth, lineHeight);
+            y += lineHeight;
+
+            const bodyText1 = `Dear Sir/Madam,`;
+            const bodyText2 = `I am an ex-serviceman security guard employed directly by NIT Patna through the Sainik Kalyan Board, AWPO Danapur.`;
+            const bodyText3 = `I hereby claim the following arrears based on underpayments and violations:`;
+            y = addWrappedText(doc, bodyText1, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, bodyText2, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, bodyText3, margin, y, contentWidth, lineHeight);
+            y += lineHeight;
+
+            // Table Header Setup
+            const headers  = ['Month', 'Required Total Wages', 'Consolidated Paid', 'Difference', 'Violation'];
+            const colWidth = [30, 45, 48, 40, 40];
+            const startX   = margin;
+
+            function drawTableHeader() {
+                headers.forEach((header, index) => {
+                    const x = startX + colWidth.slice(0, index).reduce((a, b) => a + b, 0);
+                    doc.setFont('times', 'bold');
+                    doc.text(header, x, y);
+                });
+                doc.setFont('times', 'normal');
+                y += lineHeight;
+            }
+
+            drawTableHeader();
+
+            // Table Rows
+            const rows = document.querySelectorAll('#payTable tbody tr');
+            rows.forEach(row => {
+                if (y + lineHeight > maxY) {
+                    doc.addPage();
+                    y = margin;
+                    drawTableHeader();
+                }
+
+                const cells = row.children;
+                const [year, month] = cells[0].textContent.split('-');
+                const rowData = [
+                    `${month} ${year}`,
+                    cells[1].textContent,
+                    cells[2].querySelector('input').value || '0',
+                    cells[3].textContent,
+                    cells[4].textContent
+                ];
+
+                let maxLines = 1;
+                const wrappedLines = rowData.map((text, i) => {
+                    const lines = doc.splitTextToSize(text.toString(), colWidth[i] - 2);
+                    maxLines = Math.max(maxLines, lines.length);
+                    return lines;
+                });
+
+                wrappedLines.forEach((lines, colIndex) => {
+                    const x = startX + colWidth.slice(0, colIndex).reduce((a, b) => a + b, 0);
+                    lines.forEach((line, lineIndex) => {
+                        if (y + lineHeight * (lineIndex + 1) > maxY) {
+                            doc.addPage();
+                            y = margin;
+                            drawTableHeader();
+                        }
+                        doc.text(line, x, y + lineHeight * lineIndex);
+                    });
+                });
+
+                y += lineHeight * maxLines;
+            });
+
+            // Total Arrears
+            if (y + lineHeight > maxY) {
+                doc.addPage();
+                y = margin;
+            }
+
+            doc.setFont('times', 'bold');
+            y = addWrappedText(doc, `Total Arrears: Rs. ${totalArrears.toFixed(2)}`, margin, y, contentWidth, lineHeight);
+            doc.setFont('times', 'normal');
+            y += lineHeight;
+
+            const closingText = `I kindly request the immediate release of the above arrears along with applicable interest. Please address this matter at the earliest convenience.`;
+            y = addWrappedText(doc, closingText, margin, y, contentWidth, lineHeight);
+            y += lineHeight;
+
+            y = addWrappedText(doc, `Yours sincerely,`, margin, y, contentWidth, lineHeight);
+            y = addWrappedText(doc, name, margin, y, contentWidth, lineHeight);
+
+            // Save
+            doc.save(`${name}_Arrears_Claim.pdf`);
+        }
+
+        // Event Listeners
+        document.getElementById('generateMonthsBtn').addEventListener('click', generateMonths);
+        document.getElementById('generatePDFBtn').addEventListener('click', generatePDF);
+    </script>
+</body>
+</html>
