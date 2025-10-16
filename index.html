@@ -24,7 +24,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-    <h1>Ex-Servicemen Security Guards Arrears Calculator</h1>
+    <h1>Retired or Terminated Ex-Servicemen Security Guards Arrears Calculator</h1>
     <p>This tool allows you to input your date of joining, date of termination/retirement, and consolidated pay received each month. It analyzes violations based on DGR/CLC minimum wages for NIT Patna, calculates underpayments, and generates a PDF for claiming arrears.</p>
     
     <form id="inputForm">
@@ -305,7 +305,7 @@
             // Header
             doc.setFontSize(16);
             doc.setFont('times', 'bold');
-            y = addWrappedText(doc, 'NIT Patna Ex-SM Security Guards Arrears Claim Letter', margin + 15, y, contentWidth, lineHeight + 3);
+            y = addWrappedText(doc, 'NIT Patna Retired/Terminated Ex-SM Security Guards Arrears Claim Letter', margin + 15, y, contentWidth, lineHeight + 3);
             y += lineHeight;
 
             // Personal Info
